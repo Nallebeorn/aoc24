@@ -156,6 +156,8 @@ findStartingPos:
 		}
 	}
 
+	// Multi-threading
+
 	var numPossibilities atomic.Uint64
 	var wg sync.WaitGroup
 
@@ -177,4 +179,19 @@ findStartingPos:
 	wg.Wait()
 
 	fmt.Println(numPossibilities.Load())
+
+	// // Single-threaded for comparison
+	// var numPossibilities int
+
+	// for y, line := range lines {
+	// 	for x, c := range line {
+	// 		if c == '.' {
+	// 			if isLoop(lines, guardX, guardY, x, y) {
+	// 				numPossibilities++
+	// 			}
+	// 		}
+	// 	}
+	// }
+
+	// fmt.Println(numPossibilities)
 }
