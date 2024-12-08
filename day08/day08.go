@@ -95,4 +95,62 @@ func partOne() {
 }
 
 func partTwo() {
+	defer PrintTimeSince(time.Now())
+
+	lines := SplitByLines(input)
+
+	width := len(lines[0])
+	height := len(lines)
+
+	antennas := make(map[byte][][2]int)
+
+	for y, line := range lines {
+		for x, c := range []byte(line) {
+			if c != '.' {
+				antennas[c] = append(antennas[c], [2]int{x, y})
+			}
+		}
+	}
+
+	antinodes := make(map[[2]int]bool, 0)
+
+	for _, positions := range antennas {
+		for _, position1 := range positions {
+			x := position1[0]
+			y := position1[1]
+			for _, position2 := range positions {
+				dx := position2[0] - x
+				dy := position2[1] - y
+
+				if dx == 0 && dy == 0 {
+					continue
+				}
+
+				for i := 0; i < 10000; i++ {
+					otherX := x + dx*i
+					otherY := y + dy*i
+
+					if otherX >= 0 && otherX < width && otherY >= 0 && otherY < height {
+						antinodes[[2]int{otherX, otherY}] = true
+					} else {
+						break
+					}
+				}
+			}
+		}
+	}
+
+	for y, line := range lines {
+		for x, c := range line {
+			if antinodes[[2]int{x, y}] {
+				fmt.Print("#")
+			} else {
+				fmt.Print(string(c))
+			}
+		}
+		fmt.Print("\n")
+	}
+
+	fmt.Println(len(antinodes))
+
 }
