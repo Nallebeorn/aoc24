@@ -95,4 +95,54 @@ func partOne() {
 
 func partTwo() {
 	defer PrintTimeSince(time.Now())
+
+	lines := SplitByLines(input)
+	width := len(lines[0])
+	height := len(lines)
+	topology := make([]int, 0, width*height)
+
+	for _, line := range lines {
+		for _, c := range line {
+			topology = append(topology, StrToInt(string(c)))
+		}
+	}
+
+	rating := make([]int, len(topology))
+
+	for i, h := range topology {
+		if h == 9 {
+			x := i % width
+			y := i / width
+
+			var markReachable func(int, int, int)
+			markReachable = func(x, y, fromHeight int) {
+				idx := y*width + x
+				if x < 0 || x >= width || y < 0 || y >= height {
+					return
+				}
+
+				height := topology[idx]
+				if fromHeight != height+1 {
+					return
+				}
+
+				rating[idx]++
+				markReachable(x-1, y, height)
+				markReachable(x+1, y, height)
+				markReachable(x, y-1, height)
+				markReachable(x, y+1, height)
+			}
+
+			markReachable(x, y, 10)
+		}
+	}
+
+	sum := 0
+	for i := range topology {
+		if topology[i] == 0 {
+			sum += rating[i]
+		}
+	}
+
+	fmt.Println(sum)
 }
