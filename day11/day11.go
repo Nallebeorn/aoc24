@@ -34,7 +34,7 @@ var input string
 
 func main() {
 	fmt.Println("Day 11")
-	// partOne()
+	partOne()
 	partTwo()
 }
 
