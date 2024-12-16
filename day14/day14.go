@@ -33,6 +33,14 @@ func mod(a, b int) int {
 	return (a%b + b) % b
 }
 
+func Abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+
+	return x
+}
+
 //go:embed input.txt
 var input string
 
@@ -43,8 +51,9 @@ const width = 101
 const height = 103
 
 type robot struct {
-	x, y   int
-	vx, vy int
+	x, y               int
+	vx, vy             int
+	initialX, initialY int
 }
 
 func main() {
@@ -64,7 +73,7 @@ func printState(w io.Writer, iteration int, robots []robot) {
 					continue LINE
 				}
 			}
-			fmt.Fprint(w, " ")
+			fmt.Fprint(w, ".")
 		}
 
 		fmt.Fprint(w, "\n")
@@ -133,25 +142,33 @@ func partTwo() {
 		p := strings.Split(fields[0][2:], ",")
 		v := strings.Split(fields[1][2:], ",")
 		robot := robot{
-			x:  StrToInt(p[0]),
-			y:  StrToInt(p[1]),
-			vx: StrToInt(v[0]),
-			vy: StrToInt(v[1]),
+			x:        StrToInt(p[0]),
+			y:        StrToInt(p[1]),
+			vx:       StrToInt(v[0]),
+			vy:       StrToInt(v[1]),
+			initialX: StrToInt(p[0]),
+			initialY: StrToInt(p[1]),
 		}
 		robots = append(robots, robot)
 	}
 
 	f, _ := os.Create("./day14-output.txt")
 	w := bufio.NewWriter(f)
+	lcm := 10_403
+	verticalThingy := 2
+	horizontalThingy := 76
 
-	for i := 0; i < 1000; i++ {
-		printState(w, i, robots)
+	fmt.Println("Part two:")
+	for i := 0; i < lcm; i++ {
+		if i%width == verticalThingy && i%height == horizontalThingy {
+			printState(w, i, robots)
+			fmt.Println(i)
+		}
 
 		for r := range robots {
 			robots[r].x = mod(robots[r].x+robots[r].vx, width)
 			robots[r].y = mod(robots[r].y+robots[r].vy, height)
 		}
-
 	}
 
 	w.Flush()
