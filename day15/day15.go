@@ -26,7 +26,7 @@ func StrToInt(str string) int {
 	return num
 }
 
-//go:embed example2.txt
+//go:embed example1.txt
 var input string
 
 func main() {
@@ -127,6 +127,16 @@ func partOne() {
 	fmt.Println(sum)
 }
 
+func copyWarehouse(src [][]rune) [][]rune {
+	dst := make([][]rune, len(src))
+	for i := range src {
+		dst[i] = make([]rune, len(src[i]))
+		copy(dst[i], src[i])
+	}
+
+	return dst
+}
+
 func partTwo() {
 	defer PrintTimeSince(time.Now())
 
@@ -221,10 +231,23 @@ func partTwo() {
 		pushBox = func(x, y int) bool {
 			atHere := warehouse[y][x]
 			atNext := warehouse[y+dy][x+dx]
+			var x2 int
+			if dy == 0 {
+				x2 = x
+			} else if atHere == '[' {
+				x2 = x + 1
+			} else if atHere == ']' {
+				x2 = x - 1
+			} else {
+				fmt.Println(string(atHere), string(atNext), x, y, dx, dy)
+				panic("dflgdlfgdg")
+			}
+			atNext2 := warehouse[y+dy][x2+dx]
+
 			// fmt.Println("Push", x, y, string(atHere), string(atNext))
-			if atNext == '#' {
+			if atNext == '#' || atNext2 == '#' {
 				return false
-			} else if atNext == '.' {
+			} else if atNext == '.' && atNext2 == '.' {
 				// fmt.Println("EOl")
 				removeBox(x, y, atHere)
 				putBox(x+dx, y+dy, atHere)
@@ -241,21 +264,23 @@ func partTwo() {
 						return false
 					}
 				} else {
+					backup := copyWarehouse(warehouse)
+
 					a := pushBox(x, y+dy)
-					var b bool
-					if warehouse[y][x] == '[' {
-						b = pushBox(x+1, y+dy)
-					} else if warehouse[y][x] == ']' {
-						b = pushBox(x-1, y+dy)
-					} else {
-						panic("AAAAAaaa")
-					}
+					warehouse = copyWarehouse(backup)
+					b := pushBox(x2, y+dy)
+
 					if a && b {
-						// fmt.Println("double push")
+						fmt.Println("double push")
 						removeBox(x, y, atHere)
 						putBox(x+dx, y+dy, atHere)
 						return true
+					} else if a || b {
+						fmt.Println("Half push")
 					}
+
+					fmt.Println("rollback")
+					warehouse = backup
 					return false
 				}
 			}
