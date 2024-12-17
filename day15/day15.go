@@ -3,6 +3,7 @@ package main
 import (
 	_ "embed"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -26,7 +27,7 @@ func StrToInt(str string) int {
 	return num
 }
 
-//go:embed example1.txt
+//go:embed input.txt
 var input string
 
 func main() {
@@ -127,31 +128,80 @@ func partOne() {
 	fmt.Println(sum)
 }
 
-func copyWarehouse(src [][]rune) [][]rune {
-	dst := make([][]rune, len(src))
-	for i := range src {
-		dst[i] = make([]rune, len(src[i]))
-		copy(dst[i], src[i])
-	}
-
-	return dst
+type point struct {
+	x, y int
 }
 
 func partTwo() {
 	defer PrintTimeSince(time.Now())
 
-	warehouse := make([][]rune, 0)
+	walls := make(map[point]bool)
+	boxes := make([]point, 0)
 	movements := make([]rune, 0)
+
+	hasLeftBox := func(x, y int) bool {
+		for _, box := range boxes {
+			if box.y == y && box.x == x {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	findBox := func(x, y int) (int, bool) {
+		for i, box := range boxes {
+			if box.y == y && (box.x == x || box.x+1 == x) {
+				return i, true
+			}
+		}
+
+		return 0, false
+	}
 
 	var robotx, roboty int
 
+	parseStep := 0
+	lines := SplitByLines(input)
+	width := len(lines[0]) * 2
+	var height int
+
+	for y, line := range lines {
+		if line == "" {
+			parseStep = 1
+		} else if parseStep == 0 {
+			height++
+			for x, c := range line {
+				if c == '@' {
+					robotx = x * 2
+					roboty = y
+				} else if c == 'O' {
+					boxes = append(boxes, point{x * 2, y})
+				} else if c == '#' {
+					walls[point{x * 2, y}] = true
+					walls[point{x*2 + 1, y}] = true
+				}
+			}
+		} else if parseStep == 1 {
+			for _, c := range line {
+				movements = append(movements, c)
+			}
+		}
+	}
+
 	printState := func() {
-		for y, row := range warehouse {
-			for x, c := range row {
+		for y := 0; y < height; y++ {
+			for x := 0; x < width; x++ {
 				if x == robotx && y == roboty {
 					fmt.Print("@")
+				} else if walls[point{x, y}] {
+					fmt.Print("#")
+				} else if hasLeftBox(x, y) {
+					fmt.Print("[")
+				} else if hasLeftBox(x-1, y) {
+					fmt.Print("]")
 				} else {
-					fmt.Print(string(c))
+					fmt.Print(".")
 				}
 			}
 			fmt.Print("\n")
@@ -160,55 +210,9 @@ func partTwo() {
 		fmt.Print("\n\n")
 	}
 
-	removeBox := func(x, y int, c rune) {
-		warehouse[y][x] = '.'
-		if c == ']' {
-			warehouse[y][x-1] = '.'
-		} else if c == '[' {
-			warehouse[y][x+1] = '.'
-		} else {
-			panic("Not a box to remove " + string(c))
-		}
-	}
-
-	putBox := func(x, y int, c rune) {
-		warehouse[y][x] = c
-		if c == ']' {
-			warehouse[y][x-1] = '['
-		} else if c == '[' {
-			warehouse[y][x+1] = ']'
-		} else {
-			panic("Not a box to put " + string(c))
-		}
-	}
-
-	parseStep := 0
-
-	for y, line := range SplitByLines(input) {
-		if line == "" {
-			parseStep = 1
-		} else if parseStep == 0 {
-			row := make([]rune, 0, len(line))
-			for x, c := range line {
-				if c == '@' {
-					robotx = x * 2
-					roboty = y
-					row = append(row, '.', '.')
-				} else if c == 'O' {
-					row = append(row, '[', ']')
-				} else {
-					row = append(row, c, c)
-				}
-			}
-			warehouse = append(warehouse, row)
-		} else if parseStep == 1 {
-			for _, c := range line {
-				movements = append(movements, c)
-			}
-		}
-	}
-
 	printState()
+
+	fmt.Println("num boxes", len(boxes))
 
 	for _, move := range movements {
 		var dx, dy int
@@ -225,104 +229,73 @@ func partTwo() {
 			panic("Invalid move " + string(move))
 		}
 
-		atNew := warehouse[roboty+dy][robotx+dx]
+		new := point{robotx + dx, roboty + dy}
+		pushed := make([]int, 0)
 
-		var pushBox func(x, y int) bool
-		pushBox = func(x, y int) bool {
-			atHere := warehouse[y][x]
-			atNext := warehouse[y+dy][x+dx]
-			var x2 int
-			if dy == 0 {
-				x2 = x
-			} else if atHere == '[' {
-				x2 = x + 1
-			} else if atHere == ']' {
-				x2 = x - 1
-			} else {
-				fmt.Println(string(atHere), string(atNext), x, y, dx, dy)
-				panic("dflgdlfgdg")
-			}
-			atNext2 := warehouse[y+dy][x2+dx]
-
-			// fmt.Println("Push", x, y, string(atHere), string(atNext))
-			if atNext == '#' || atNext2 == '#' {
-				return false
-			} else if atNext == '.' && atNext2 == '.' {
-				// fmt.Println("EOl")
-				removeBox(x, y, atHere)
-				putBox(x+dx, y+dy, atHere)
-				return true
-			} else {
-				fmt.Println("next", string(atNext))
-				if dy == 0 {
-					if pushBox(x+dx, y+dy) {
-						// fmt.Println("pushy push")
-						removeBox(x, y, atHere)
-						putBox(x+dx, y+dy, atHere)
-						return true
-					} else {
-						return false
+		if dy == 0 {
+			for x := new.x; true; x += dx * 2 {
+				boxId, isBox := findBox(x, new.y)
+				if walls[point{x, new.y}] {
+					break
+				} else if isBox {
+					if !slices.Contains(pushed, boxId) {
+						pushed = append(pushed, boxId)
 					}
 				} else {
-					backup := copyWarehouse(warehouse)
-
-					a := pushBox(x, y+dy)
-					warehouse = copyWarehouse(backup)
-					b := pushBox(x2, y+dy)
-
-					if a && b {
-						fmt.Println("double push")
-						removeBox(x, y, atHere)
-						putBox(x+dx, y+dy, atHere)
-						return true
-					} else if a || b {
-						fmt.Println("Half push")
+					robotx = new.x
+					for _, b := range pushed {
+						boxes[b].x += dx
 					}
-
-					fmt.Println("rollback")
-					warehouse = backup
-					return false
+					break
 				}
 			}
-		}
+		} else {
+			if walls[new] {
+				goto stop
+			} else if boxId, isBox := findBox(new.x, new.y); isBox {
+				pushed = append(pushed, boxId)
 
-		switch atNew {
-		case '[', ']':
-			if pushBox(robotx+dx, roboty+dy) {
-				robotx += dx
-				roboty += dy
-				warehouse[roboty][robotx] = '.'
-				if dy != 0 {
-					if atNew == '[' {
-						warehouse[roboty][robotx+1] = '.'
-					} else if atNew == ']' {
-						warehouse[roboty][robotx-1] = '.'
-					} else {
-						panic("Aaaasdadad")
+				for b := 0; b < len(pushed); b++ {
+					box := boxes[pushed[b]]
+					if walls[point{box.x, box.y + dy}] || walls[point{box.x + 1, box.y + dy}] {
+						goto stop
+					}
+
+					if boxId, isBox = findBox(box.x, box.y+dy); isBox {
+						if !slices.Contains(pushed, boxId) {
+							pushed = append(pushed, boxId)
+						}
+					}
+					if boxId, isBox = findBox(box.x+1, box.y+dy); isBox {
+						if !slices.Contains(pushed, boxId) {
+							pushed = append(pushed, boxId)
+						}
 					}
 				}
 			}
-		case '.':
-			robotx += dx
-			roboty += dy
-		case '#':
-			continue
-		default:
-			panic("Invalid object found")
+
+			roboty = new.y
+			for _, b := range pushed {
+				boxes[b].y += dy
+			}
 		}
 
-		fmt.Println(string(move))
-		printState()
+	stop:
+		// fmt.Println(i, string(move))
+		// printState()
+
+		for i, box := range boxes {
+			if box.x < 2 || box.x > width-3 || box.y < 1 || box.y > height-2 {
+				fmt.Println("oob box", i)
+				panic("wtf")
+			}
+		}
 	}
 
 	sum := 0
-	for y, row := range warehouse {
-		for x, c := range row {
-			if c == '[' {
-				gps := y*100 + x
-				sum += gps
-			}
-		}
+	for _, box := range boxes {
+		gps := box.y*100 + box.x
+		sum += gps
 	}
 
 	fmt.Println(sum)
